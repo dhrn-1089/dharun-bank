@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  city        String
+  state       String
+  address     String
+  phone       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customers   Customer[]
+  loans       Loan[]
+  admins      AdminProfile[]
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String?       @unique
+  phone        String        @unique
+  passwordHash String
+  userType     String        // "CUSTOMER" or "ADMIN"
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  customer     Customer?
+  adminProfile AdminProfile?
+  notifications Notification[]
+}
+
+model AdminProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adminCode       String   @unique
+  fullName        String
+  role            String   // "SUPER_ADMIN", "ADMINISTRATOR", "BRANCH_MANAGER", "LOAN_OFFICER", "ACCOUNTANT", "COLLECTION_OFFICER", "AUDITOR"
+  phone           String?
+  email           String?
+  dob             String?
+  age             Int?
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  permissions     String   @default("[]") // JSON string of permission keys
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdCustomers Customer[]       @relation("AdminCreatedCustomers")
+  createdLoans     Loan[]           @relation("AdminCreatedLoans")
+  approvedLoans    Loan[]           @relation("AdminApprovedLoans")
+  disbursedLoans   Loan[]           @relation("AdminDisbursedLoans")
+  recordedPayments Payment[]        @relation("AdminRecordedPayments")
+  auditLogs        AuditLog[]
+}
+
+model Customer {
+  id                    String   @id @default(uuid())
+  customerId            String   @unique // e.g. AFS10001
+  userId                String?  @unique
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName              String
+  phone                 String   @unique
+  email                 String?  @unique
+  dob                   String?
+  gender                String?
+  address               String
+  city                  String
+  state                 String
+  pincode               String
+  panNumber             String?
+  aadhaarMasked         String?
+  
+  // Structured Statuses
+  applicationStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  verificationStatus    String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  membershipStatus      String   @default("APPLIED") // APPLIED, ACTIVE, INACTIVE
+  accountStatus         String   @default("PENDING_APPROVAL") // PENDING_APPROVAL, ACTIVE, SUSPENDED, DEACTIVATED
+  loanEligibilityStatus String   @default("UNDER_REVIEW") // ELIGIBLE, INELIGIBLE, UNDER_REVIEW
+  
+  branchId              String?
+  branch                Branch?  @relation(fields: [branchId], references: [id])
+  createdByAdminId      String?
+  createdByAdmin        AdminProfile? @relation("AdminCreatedCustomers", fields: [createdByAdminId], references: [id])
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  loans                 Loan[]
+  payments              Payment[]
+  loanApplications      LoanApplication[]
+  notifications         Notification[]
+}
+
+model LoanApplication {
+  id              String   @id @default(uuid())
+  applicationRef  String   @unique // e.g. AFS-APP-1001
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  requestedAmount Float
+  purpose         String
+  tenureMonths    Int
+  proposedType    String   // PERSONAL, GOLD, PROPERTY, BUSINESS
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewRemarks   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Loan {
+  id                   String   @id @default(uuid())
+  loanId               String   @unique // e.g. AFS-LN-2026-001
+  customerId           String
+  customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branchId             String?
+  branch               Branch?  @relation(fields: [branchId], references: [id])
+  loanType             String   // "PERSONAL", "GOLD", "PROPERTY", "BUSINESS"
+  principalAmount      Float
+  annualInterestRate   Float    // in percentage e.g. 12.0
+  interestType         String   @default("REDUCING_BALANCE") // "REDUCING_BALANCE", "FLAT"
+  tenureMonths         Int
+  monthlyEmi           Float
+  totalInterest        Float
+  totalRepaymentAmount Float
+  amountDisbursed      Float    @default(0)
+  amountRepaid         Float    @default(0)
+  outstandingBalance   Float
+  startDate            DateTime
+  endDate              DateTime
+  emiDueDay            Int      @default(5)
+  collateralDetails    String?
+  remarks              String?
+  
+  // Status: DRAFT, PENDING_APPROVAL, APPROVED, DISBURSED, ACTIVE, CLOSED, REJECTED
+  status               String   @default("PENDING_APPROVAL")
+
+  // Maker-Checker IDs
+  createdByAdminId     String?
+  createdByAdmin       AdminProfile? @relation("AdminCreatedLoans", fields: [createdByAdminId], references: [id])
+  approvedByAdminId    String?
+  approvedByAdmin      AdminProfile? @relation("AdminApprovedLoans", fields: [approvedByAdminId], references: [id])
+  disbursedByAdminId   String?
+  disbursedByAdmin     AdminProfile? @relation("AdminDisbursedLoans", fields: [disbursedByAdminId], references: [id])
+  approvalDate         DateTime?
+  disbursementDate     DateTime?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  repaymentSchedules   RepaymentSchedule[]
+  payments             Payment[]
+}
+
+model RepaymentSchedule {
+  id                 String    @id @default(uuid())
+  loanId             String
+  loan               Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  installmentNumber  Int
+  monthName          String    // e.g. "November 2026"
+  dueDate            DateTime
+  emiAmount          Float
+  principalComponent Float
+  interestComponent  Float
+  paidAmount         Float     @default(0)
+  remainingAmount    Float
+  status             String    @default("UPCOMING") // UPCOMING, PAID, PARTIALLY_PAID, OVERDUE
+  paidDate           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Payment {
+  id                 String    @id @default(uuid())
+  transactionId      String    @unique // e.g. AFS-TXN-10001
+  receiptNumber      String    @unique // e.g. AFS-REC-10001
+  loanId             String
+  loan               Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount             Float
+  paymentDate        DateTime  @default(now())
+  paymentMethod      String    // "CASH", "BANK_TRANSFER", "UPI", "CHEQUE"
+  paymentType        String    @default("EMI") // "EMI", "PART_PAYMENT", "FORECLOSURE"
+  status             String    @default("SUCCESS") // "SUCCESS", "REVERSED", "PENDING"
+  referenceNumber    String?
+  remarks            String?
+  recordedByAdminId  String?
+  recordedByAdmin    AdminProfile? @relation("AdminRecordedPayments", fields: [recordedByAdminId], references: [id])
+  
+  // Reversal fields
+  isReversed         Boolean   @default(false)
+  reversalReason     String?
+  reversalDate       DateTime?
+  reversalApprovedBy String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title       String
+  message     String
+  type        String   @default("INFO") // INFO, SUCCESS, WARNING, ALERT
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id           String        @id @default(uuid())
+  adminId      String?
+  admin        AdminProfile? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  adminRole    String?
+  action       String        // e.g. "CUSTOMER_CREATE", "LOAN_APPROVE", "PAYMENT_RECORD"
+  entityType   String        // "CUSTOMER", "LOAN", "PAYMENT", "ADMIN"
+  entityId     String?
+  previousValues String?     // JSON string
+  newValues      String?     // JSON string
+  ipAddress    String?
+  userAgent    String?
+  remarks      String?
+  createdAt    DateTime      @default(now())
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}

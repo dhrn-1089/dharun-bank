@@ -1,0 +1,81 @@
+export const RolePermissions: Record<string, string[]> = {
+  SUPER_ADMIN: [
+    "customers.view",
+    "customers.create",
+    "customers.update",
+    "customers.approve",
+    "customers.suspend",
+    "loans.view",
+    "loans.create",
+    "loans.review",
+    "loans.approve",
+    "loans.disburse",
+    "payments.view",
+    "payments.record",
+    "payments.reverse",
+    "reports.view",
+    "reports.export",
+    "admins.create",
+    "admins.manage",
+    "audit.view",
+    "settings.manage",
+  ],
+  ADMINISTRATOR: [
+    "customers.view",
+    "customers.create",
+    "customers.update",
+    "customers.approve",
+    "loans.view",
+    "loans.create",
+    "loans.review",
+    "loans.approve",
+    "payments.view",
+    "payments.record",
+    "reports.view",
+    "reports.export",
+  ],
+  BRANCH_MANAGER: [
+    "customers.view",
+    "customers.create",
+    "customers.update",
+    "loans.view",
+    "loans.review",
+    "payments.view",
+    "reports.view",
+  ],
+  LOAN_OFFICER: [
+    "customers.view",
+    "customers.create",
+    "loans.view",
+    "loans.create",
+  ],
+  ACCOUNTANT: [
+    "customers.view",
+    "loans.view",
+    "payments.view",
+    "payments.record",
+    "payments.reverse",
+    "reports.view",
+    "reports.export",
+  ],
+  COLLECTION_OFFICER: [
+    "customers.view",
+    "loans.view",
+    "payments.view",
+    "payments.record",
+  ],
+  AUDITOR: [
+    "customers.view",
+    "loans.view",
+    "payments.view",
+    "reports.view",
+    "reports.export",
+    "audit.view",
+  ],
+};
+
+export function hasPermission(role: string, permission: string): boolean {
+  if (role === "SUPER_ADMIN") return true;
+  const permissions = RolePermissions[role] || [];
+  return permissions.includes(permission);
+}
