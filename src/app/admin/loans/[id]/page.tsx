@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatINR } from "@/lib/financial";
+import { safeJson } from "@/lib/api";
 import {
   CreditCard,
   ArrowLeft,
@@ -31,11 +32,9 @@ export default function AdminLoanDetailPage() {
 
   const fetchLoan = () => {
     fetch(`/api/admin/loans/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Loan not found");
-        return res.json();
-      })
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data, error }) => {
+        if (!ok) throw new Error(error || "Loan not found");
         setLoan(data);
         setLoading(false);
       })
@@ -56,18 +55,18 @@ export default function AdminLoanDetailPage() {
 
     try {
       const res = await fetch(`/api/admin/loans/${id}`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
 
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Action failed");
+      const { ok, data: resData, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || resData?.error || "Action failed");
 
-      setMsg(resData.message);
+      setMsg(resData.message || "Action successful");
       fetchLoan();
     } catch (err: any) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || "Failed to execute action.");
     } finally {
       setActionLoading(false);
     }

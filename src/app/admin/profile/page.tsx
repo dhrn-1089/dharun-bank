@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { User, ShieldCheck, Mail, Phone, Calendar, Building, Lock } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function AdminProfilePage() {
   const [profile, setProfile] = useState<any>(null);
@@ -10,9 +11,9 @@ export default function AdminProfilePage() {
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile(data.admin);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setProfile(ok && data?.admin ? data.admin : null);
         setLoading(false);
       })
       .catch((err) => {

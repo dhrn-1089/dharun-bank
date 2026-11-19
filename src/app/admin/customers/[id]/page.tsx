@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { formatINR } from "@/lib/financial";
+import { safeJson } from "@/lib/api";
 import {
   User,
   ArrowLeft,
@@ -31,11 +32,9 @@ export default function AdminCustomerDetailPage() {
 
   const fetchProfile = () => {
     fetch(`/api/admin/customers/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Customer not found");
-        return res.json();
-      })
-      .then((d) => {
+      .then(safeJson)
+      .then(({ ok, data: d, error }) => {
+        if (!ok) throw new Error(error || "Customer not found");
         setData(d);
         setLoading(false);
       })
@@ -54,16 +53,16 @@ export default function AdminCustomerDetailPage() {
     setMsg("");
     try {
       const res = await fetch(`/api/admin/customers/${id}`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Action failed");
-      setMsg(resData.message);
+      const { ok, data: resData, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || resData?.error || "Action failed");
+      setMsg(resData.message || "Customer status updated successfully.");
       fetchProfile();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || "Failed to update customer status.");
     } finally {
       setActionLoading(false);
     }

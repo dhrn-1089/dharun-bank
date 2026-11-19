@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { formatINR } from "@/lib/financial";
 import { History, Receipt, Printer, X, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function PaymentHistoryPage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -13,10 +14,10 @@ export default function PaymentHistoryPage() {
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => res.json())
-      .then((data) => {
-        setLoans(data.loans || []);
-        setCustomer(data.customer || null);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setLoans(ok && data?.loans ? data.loans : []);
+        setCustomer(ok && data?.customer ? data.customer : null);
         setLoading(false);
       })
       .catch((err) => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import { Receipt, PlusCircle, Search, Printer, CheckCircle2, X } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<any[]>([]);
@@ -14,9 +15,9 @@ export default function AdminPaymentsPage() {
   const fetchPayments = () => {
     setLoading(true);
     fetch(`/api/admin/payments?query=${encodeURIComponent(query)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setPayments(Array.isArray(data) ? data : []);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setPayments(ok && Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import { CreditCard, PlusCircle, Search, Filter, ArrowRight, ShieldCheck, CheckCircle2, Clock } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AdminLoansPage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -14,9 +15,9 @@ export default function AdminLoansPage() {
   const fetchLoans = () => {
     setLoading(true);
     fetch(`/api/admin/loans?status=${status}&type=${type}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setLoans(Array.isArray(data) ? data : []);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setLoans(ok && Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {

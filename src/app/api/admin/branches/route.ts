@@ -29,6 +29,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+
+    if (body.action === "UPDATE_BRANCH" || body.id) {
+      return handleBranchUpdate(session, body);
+    }
+
     const { name, code, city, state, address, phone } = body;
 
     if (!name || !address || !city) {
@@ -74,6 +79,43 @@ export async function POST(req: Request) {
   }
 }
 
+async function handleBranchUpdate(session: any, body: any) {
+  const { id, name, address, city, state, phone } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "Branch ID is required." }, { status: 400 });
+  }
+
+  const updated = await prisma.branch.update({
+    where: { id },
+    data: {
+      ...(name && { name }),
+      ...(address && { address }),
+      ...(city && { city }),
+      ...(state && { state }),
+      ...(phone && { phone }),
+    },
+  });
+
+  // Audit Log
+  await prisma.auditLog.create({
+    data: {
+      adminId: session.adminProfileId,
+      adminRole: session.role,
+      action: "BRANCH_UPDATE",
+      entityType: "BRANCH",
+      entityId: updated.code,
+      remarks: `Branch ${updated.name} address updated to: ${updated.address}.`,
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: `Branch ${updated.name} updated successfully.`,
+    branch: updated,
+  });
+}
+
 export async function PATCH(req: Request) {
   try {
     const session = await getCurrentSession();
@@ -82,40 +124,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, name, address, city, state, phone } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "Branch ID is required." }, { status: 400 });
-    }
-
-    const updated = await prisma.branch.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(address && { address }),
-        ...(city && { city }),
-        ...(state && { state }),
-        ...(phone && { phone }),
-      },
-    });
-
-    // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: session.adminProfileId,
-        adminRole: session.role,
-        action: "BRANCH_UPDATE",
-        entityType: "BRANCH",
-        entityId: updated.code,
-        remarks: `Branch ${updated.name} address updated to: ${updated.address}.`,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: `Branch ${updated.name} updated successfully.`,
-      branch: updated,
-    });
+    return handleBranchUpdate(session, body);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

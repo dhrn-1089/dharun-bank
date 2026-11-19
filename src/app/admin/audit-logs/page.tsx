@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ShieldAlert, Clock, User, Filter } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -9,9 +10,9 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     fetch("/api/admin/audit-logs")
-      .then((res) => res.json())
-      .then((data) => {
-        setLogs(Array.isArray(data) ? data : []);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setLogs(ok && Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {

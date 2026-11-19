@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import Greeting from "@/components/Greeting";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 import {
   CreditCard,
   CheckCircle2,
@@ -24,9 +25,11 @@ export default function CustomerDashboardPage() {
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => res.json())
-      .then((resData) => {
-        setData(resData);
+      .then(safeJson)
+      .then(({ ok, data: resData }) => {
+        if (ok && resData) {
+          setData(resData);
+        }
         setLoading(false);
       })
       .catch((err) => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AddCustomerManualPage() {
   const router = useRouter();
@@ -40,12 +41,12 @@ export default function AddCustomerManualPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create customer");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to create customer");
 
       setSuccess(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to create customer.");
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { safeJson } from "@/lib/api";
 import {
   LayoutDashboard,
   Users,
@@ -34,12 +35,9 @@ export default function AdminLayout({
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((res) => {
-        if (!res.ok) throw new Error("Unauthorized");
-        return res.json();
-      })
-      .then((data) => {
-        if (data.userType !== "ADMIN") {
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        if (!ok || data?.userType !== "ADMIN") {
           router.push("/admin/login");
         } else {
           setAdminUser(data.admin);

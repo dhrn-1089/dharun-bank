@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Building, ShieldCheck, Lock, PlusCircle, Edit3, CheckCircle2, AlertCircle, X, MapPin, Phone } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function AdminSettingsPage() {
   const [branches, setBranches] = useState<any[]>([]);
@@ -31,8 +32,8 @@ export default function AdminSettingsPage() {
   const fetchBranches = () => {
     setLoading(true);
     fetch("/api/admin/branches")
-      .then((res) => res.json())
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data }) => {
         setBranches(Array.isArray(data) ? data : []);
         setLoading(false);
       })
@@ -59,10 +60,10 @@ export default function AdminSettingsPage() {
         body: JSON.stringify(newBranch),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add branch");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to add branch");
 
-      setMsg(data.message);
+      setMsg(data.message || "Branch added successfully.");
       setShowAddBranch(false);
       setNewBranch({
         name: "",
@@ -74,7 +75,7 @@ export default function AdminSettingsPage() {
       });
       fetchBranches();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to add branch.");
     } finally {
       setSaving(false);
     }
@@ -90,23 +91,24 @@ export default function AdminSettingsPage() {
 
     try {
       const res = await fetch("/api/admin/branches", {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "UPDATE_BRANCH",
           id: editingBranch.id,
           address: editAddress,
           phone: editPhone,
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update branch");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to update branch");
 
-      setMsg(data.message);
+      setMsg(data.message || "Branch updated successfully.");
       setEditingBranch(null);
       fetchBranches();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to update branch.");
     } finally {
       setSaving(false);
     }

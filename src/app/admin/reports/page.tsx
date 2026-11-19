@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatINR } from "@/lib/financial";
 import { FileBarChart, Download, Filter, Calendar } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AdminReportsPage() {
   const [reportType, setReportType] = useState("COLLECTION_MONTHLY");
@@ -12,9 +13,9 @@ export default function AdminReportsPage() {
   const fetchReport = () => {
     setLoading(true);
     fetch(`/api/admin/reports?type=${reportType}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setReportData(data);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setReportData(ok ? data : null);
         setLoading(false);
       })
       .catch((err) => {

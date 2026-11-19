@@ -42,7 +42,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+async function handleLoanUpdate(
   req: Request,
   { params }: { params: { id: string } }
 ) {
@@ -159,4 +159,12 @@ export async function PATCH(
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function PATCH(req: Request, context: { params: { id: string } }) {
+  return handleLoanUpdate(req, context);
+}
+
+export async function POST(req: Request, context: { params: { id: string } }) {
+  return handleLoanUpdate(req, context);
 }

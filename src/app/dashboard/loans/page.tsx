@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import { CreditCard, Calendar, CheckCircle2, ShieldCheck, ArrowRight, Clock } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function MyLoansPage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -11,9 +12,9 @@ export default function MyLoansPage() {
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => res.json())
-      .then((data) => {
-        setLoans(data.loans || []);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setLoans(ok && data?.loans ? data.loans : []);
         setLoading(false);
       })
       .catch((err) => {

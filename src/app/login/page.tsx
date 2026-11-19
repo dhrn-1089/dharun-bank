@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Lock, Phone, User, AlertCircle, ArrowRight, ShieldCheck, Mail, X } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function CustomerLoginPage() {
   const router = useRouter();
@@ -47,22 +48,8 @@ export default function CustomerLoginPage() {
         }),
       });
 
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        throw new Error(
-          res.status === 404
-            ? "Authentication service endpoint not found."
-            : `Server response error (${res.status}). Please check network connectivity.`
-        );
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "Authentication failed");
-      }
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Authentication failed");
 
       router.push("/dashboard");
     } catch (err: any) {
@@ -87,22 +74,13 @@ export default function CustomerLoginPage() {
         }),
       });
 
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        throw new Error("Unable to connect to Google verification service.");
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "Google sign-in failed");
-      }
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Google sign-in failed");
 
       setShowGoogleModal(false);
       router.push(data.redirect || "/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to authenticate via Google.");
     } finally {
       setGoogleLoading(false);
     }

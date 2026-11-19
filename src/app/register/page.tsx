@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, User, Phone, Mail, MapPin, CreditCard, Lock, CheckCircle2, AlertCircle, ArrowRight, X } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -60,21 +61,12 @@ export default function RegisterPage() {
         body: JSON.stringify(formData),
       });
 
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        throw new Error("Server communication error. Please check your network.");
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
-      }
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Registration failed");
 
       setSuccess(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Registration failed.");
     } finally {
       setLoading(false);
     }
@@ -95,20 +87,13 @@ export default function RegisterPage() {
         }),
       });
 
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        throw new Error("Unable to connect to Google verification service.");
-      }
-
-      if (!res.ok) throw new Error(data.error || "Google sign-up failed");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Google sign-up failed");
 
       setShowGoogleModal(false);
       router.push(data.redirect || "/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to authenticate via Google.");
     } finally {
       setGoogleLoading(false);
     }

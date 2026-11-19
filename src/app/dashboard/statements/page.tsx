@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { formatINR } from "@/lib/financial";
 import { Download, Printer, ShieldCheck, FileSpreadsheet } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function LoanStatementPage() {
   const [data, setData] = useState<any>(null);
@@ -11,9 +12,9 @@ export default function LoanStatementPage() {
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => res.json())
-      .then((resData) => {
-        setData(resData);
+      .then(safeJson)
+      .then(({ ok, data: resData }) => {
+        setData(ok ? resData : null);
         setLoading(false);
       })
       .catch((err) => {

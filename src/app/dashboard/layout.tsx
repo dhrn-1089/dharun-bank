@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { safeJson } from "@/lib/api";
 import {
   LayoutDashboard,
   User,
@@ -31,11 +32,14 @@ export default function CustomerDashboardLayout({
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => {
-        if (!res.ok) throw new Error("Unauthorized");
-        return res.json();
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        if (!ok || !data?.customer) {
+          router.push("/login");
+        } else {
+          setCustomer(data.customer);
+        }
       })
-      .then((data) => setCustomer(data.customer))
       .catch(() => {
         router.push("/login");
       });

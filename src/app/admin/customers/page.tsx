@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import { Users, Search, Filter, Download, UserPlus, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -14,9 +15,9 @@ export default function AdminCustomersPage() {
   const fetchCustomers = () => {
     setLoading(true);
     fetch(`/api/admin/customers?query=${encodeURIComponent(query)}&status=${status}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setCustomers(Array.isArray(data) ? data : []);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setCustomers(ok && Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {

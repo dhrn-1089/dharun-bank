@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatINR } from "@/lib/financial";
 import { CalendarDays, Filter, Download, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { safeJson } from "@/lib/api";
 
 export default function EMISchedulePage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -12,9 +13,9 @@ export default function EMISchedulePage() {
 
   useEffect(() => {
     fetch("/api/customer/dashboard")
-      .then((res) => res.json())
-      .then((data) => {
-        const loadedLoans = data.loans || [];
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        const loadedLoans = ok && data?.loans ? data.loans : [];
         setLoans(loadedLoans);
         if (loadedLoans.length > 0) {
           setSelectedLoanId(loadedLoans[0].id);

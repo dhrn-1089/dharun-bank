@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UserPlus, Users, ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle, X, Lock } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function StaffManagementPage() {
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -29,8 +30,8 @@ export default function StaffManagementPage() {
   const fetchStaff = () => {
     setLoading(true);
     fetch("/api/admin/staff")
-      .then((res) => res.json())
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data }) => {
         setStaffList(Array.isArray(data) ? data : []);
         setLoading(false);
       })
@@ -43,8 +44,8 @@ export default function StaffManagementPage() {
   useEffect(() => {
     fetchStaff();
     fetch("/api/admin/branches")
-      .then((res) => res.json())
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data }) => {
         const b = Array.isArray(data) ? data : [];
         setBranches(b);
         if (b.length > 0) setFormData((prev) => ({ ...prev, branchId: b[0].id }));
@@ -75,10 +76,10 @@ export default function StaffManagementPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create staff account");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to create staff account");
 
-      setSuccessMsg(data.message);
+      setSuccessMsg(data.message || "Staff account created successfully.");
       setShowAddModal(false);
       setFormData({
         fullName: "",
@@ -92,7 +93,7 @@ export default function StaffManagementPage() {
       });
       fetchStaff();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to create staff account.");
     } finally {
       setCreateLoading(false);
     }

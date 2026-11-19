@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { User, Phone, Mail, MapPin, ShieldCheck, CheckCircle2, Lock } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function CustomerProfilePage() {
   const [profile, setProfile] = useState<any>(null);
@@ -9,9 +10,9 @@ export default function CustomerProfilePage() {
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile(data.customer);
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        setProfile(ok && data?.customer ? data.customer : null);
         setLoading(false);
       })
       .catch((err) => {

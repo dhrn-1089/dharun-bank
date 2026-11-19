@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Lock, Mail, AlertCircle, ArrowRight, UserCheck, Briefcase } from "lucide-react";
 import CyberSignature from "@/components/CyberSignature";
+import { safeJson } from "@/lib/api";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -41,17 +42,8 @@ export default function AdminLoginPage() {
         }),
       });
 
-      const contentType = res.headers.get("content-type");
-      let data: any = {};
-      if (contentType && contentType.includes("application/json")) {
-        data = await res.json();
-      } else {
-        throw new Error("Unable to connect to administrative authentication service. Please verify your connection.");
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "Administrative authentication failed");
-      }
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Administrative authentication failed");
 
       router.push("/admin/dashboard");
     } catch (err: any) {

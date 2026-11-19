@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatINR } from "@/lib/financial";
 import { ArrowLeft, Receipt, CheckCircle2, AlertCircle, Coins, ShieldCheck } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 function RecordPaymentContent() {
   const router = useRouter();
@@ -26,8 +27,8 @@ function RecordPaymentContent() {
 
   useEffect(() => {
     fetch("/api/admin/loans?status=ACTIVE")
-      .then((res) => res.json())
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data }) => {
         const activeLoans = Array.isArray(data) ? data : [];
         setLoans(activeLoans);
         if (!selectedLoanId && activeLoans.length > 0) {
@@ -38,13 +39,12 @@ function RecordPaymentContent() {
             (l) => l.id === selectedLoanId || l.loanId === selectedLoanId
           );
           if (found) {
-            setSelectedLoanId(found.id);
             setAmount(found.monthlyEmi);
           }
         }
       })
       .catch((err) => console.error(err));
-  }, []);
+  }, [selectedLoanId]);
 
   const selectedLoan = loans.find(
     (l) => l.id === selectedLoanId || l.loanId === selectedLoanId
@@ -84,12 +84,12 @@ function RecordPaymentContent() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to record payment");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to record payment");
 
       setSuccess(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to record payment.");
     } finally {
       setLoading(false);
     }

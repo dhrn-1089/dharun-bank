@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatINR, calculateReducingBalanceEmi, calculateFlatInterestEmi } from "@/lib/financial";
 import { ArrowLeft, CreditCard, Calculator, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { safeJson } from "@/lib/api";
 
 export default function CreateLoanPage() {
   const router = useRouter();
@@ -26,8 +27,8 @@ export default function CreateLoanPage() {
 
   useEffect(() => {
     fetch("/api/admin/customers?status=ACTIVE")
-      .then((res) => res.json())
-      .then((data) => {
+      .then(safeJson)
+      .then(({ ok, data }) => {
         const activeCusts = Array.isArray(data) ? data : [];
         setCustomers(activeCusts);
         if (activeCusts.length > 0) {
@@ -72,12 +73,12 @@ export default function CreateLoanPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create loan");
+      const { ok, data, error: parseError } = await safeJson(res);
+      if (!ok) throw new Error(parseError || data?.error || "Failed to create loan");
 
       setSuccess(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to create loan.");
     } finally {
       setLoading(false);
     }
