@@ -104,6 +104,7 @@ export async function POST(req: Request) {
       branchId: user.adminProfile?.branchId || user.customer?.branchId,
       email: user.email,
       phone: user.phone,
+      name: user.customer?.fullName || user.adminProfile?.fullName || "User",
     });
 
     const response = NextResponse.json({

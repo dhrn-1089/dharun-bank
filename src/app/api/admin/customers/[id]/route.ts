@@ -130,6 +130,92 @@ async function handleCustomerUpdate(
 
     let updateData: any = {};
 
+    if (action === "DELETE" || action === "REQUEST_DELETION") {
+      const isSuperAdmin = session.role === "SUPER_ADMIN";
+
+      if (isSuperAdmin) {
+        // Direct Super Admin Delete without approval
+        await prisma.$transaction(async (tx) => {
+          const loans = await tx.loan.findMany({ where: { customerId: customer.id } });
+          const loanIds = loans.map((l) => l.id);
+          if (loanIds.length > 0) {
+            await tx.repaymentSchedule.deleteMany({ where: { loanId: { in: loanIds } } });
+            await tx.payment.deleteMany({ where: { loanId: { in: loanIds } } });
+            await tx.loan.deleteMany({ where: { id: { in: loanIds } } });
+          }
+          await tx.payment.deleteMany({ where: { customerId: customer.id } });
+          await tx.loanApplication.deleteMany({ where: { customerId: customer.id } });
+          await tx.notification.deleteMany({ where: { customerId: customer.id } });
+          await tx.customer.delete({ where: { id: customer.id } });
+
+          if (customer.userId) {
+            await tx.notification.deleteMany({ where: { userId: customer.userId } });
+            await tx.user.delete({ where: { id: customer.userId } });
+          }
+
+          await tx.deletionRequest.updateMany({
+            where: { entityId: customer.id, status: "PENDING" },
+            data: { status: "APPROVED", reviewedAt: new Date() },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              adminId: session.adminProfileId,
+              adminRole: session.role,
+              action: "CUSTOMER_PERMANENT_DELETE",
+              entityType: "CUSTOMER",
+              entityId: customer.customerId,
+              remarks: `Customer ${customer.fullName} (${customer.customerId}) permanently removed by Super Admin. Reason: ${reason || "Direct removal"}.`,
+            },
+          });
+        });
+
+        return NextResponse.json({
+          success: true,
+          immediate: true,
+          message: `Customer ${customer.fullName} (${customer.customerId}) permanently deleted by Super Admin.`,
+        });
+      } else {
+        // Staff Request Deletion - Requires Super Admin Approval
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: { accountStatus: "PENDING_DELETION" },
+        });
+
+        const reqRecord = await prisma.deletionRequest.create({
+          data: {
+            entityType: "CUSTOMER",
+            entityId: customer.id,
+            entityIdentifier: `${customer.customerId} - ${customer.fullName}`,
+            reason: reason || "Staff requested customer removal.",
+            status: "PENDING",
+            requestedById: session.adminProfileId || session.userId,
+            requestedByRole: session.role || "STAFF",
+            requestedByName: session.name || "Staff Member",
+          },
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            adminId: session.adminProfileId,
+            adminRole: session.role,
+            action: "CUSTOMER_DELETION_REQUESTED",
+            entityType: "CUSTOMER",
+            entityId: customer.customerId,
+            remarks: `Deletion requested by ${session.role} (${session.name}): ${reason || "No remarks"}. Pending Super Admin approval.`,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          immediate: false,
+          pendingApproval: true,
+          message: `Deletion request submitted for Super Admin review. Customer account placed in PENDING DELETION.`,
+          request: reqRecord,
+        });
+      }
+    }
+
     if (action === "APPROVE_REGISTRATION") {
       updateData = {
         applicationStatus: "APPROVED",
@@ -207,5 +293,9 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
 }
 
 export async function POST(req: Request, context: { params: { id: string } }) {
+  return handleCustomerUpdate(req, context);
+}
+
+export async function DELETE(req: Request, context: { params: { id: string } }) {
   return handleCustomerUpdate(req, context);
 }

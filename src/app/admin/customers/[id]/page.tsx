@@ -17,7 +17,10 @@ import {
   Clock,
   Printer,
   Ban,
-  UserCheck
+  UserCheck,
+  Trash2,
+  AlertTriangle,
+  X
 } from "lucide-react";
 
 export default function AdminCustomerDetailPage() {
@@ -29,6 +32,10 @@ export default function AdminCustomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [currentAdminRole, setCurrentAdminRole] = useState("STAFF");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchProfile = () => {
     fetch(`/api/admin/customers/${id}`)
@@ -46,7 +53,45 @@ export default function AdminCustomerDetailPage() {
 
   useEffect(() => {
     if (id) fetchProfile();
+    fetch("/api/auth/me")
+      .then(safeJson)
+      .then(({ ok, data }) => {
+        if (ok && data?.role) setCurrentAdminRole(data.role);
+      })
+      .catch(() => {});
   }, [id]);
+
+  const handleDeleteSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setDeleteLoading(true);
+    try {
+      const isSuperAdmin = currentAdminRole === "SUPER_ADMIN";
+      const action = isSuperAdmin ? "DELETE" : "REQUEST_DELETION";
+
+      const res = await fetch(`/api/admin/customers/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, reason: deleteReason }),
+      });
+
+      const { ok, data: resData, error } = await safeJson(res);
+      if (!ok) throw new Error(error || resData?.error || "Delete action failed");
+
+      setShowDeleteModal(false);
+
+      if (isSuperAdmin) {
+        alert(resData.message || "Customer permanently deleted by Super Admin.");
+        router.push("/admin/customers");
+      } else {
+        alert(resData.message || "Customer deletion request submitted for Super Admin review.");
+        fetchProfile();
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to process customer deletion.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleStatusAction = async (action: string) => {
     setActionLoading(true);
@@ -142,8 +187,56 @@ export default function AdminCustomerDetailPage() {
           >
             <CreditCard className="w-3.5 h-3.5 text-[#E6A500]" /> Issue New Loan
           </Link>
+
+          {/* Delete / Remove Customer Button */}
+          <button
+            onClick={() => {
+              setDeleteReason("");
+              setShowDeleteModal(true);
+            }}
+            disabled={actionLoading}
+            className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {currentAdminRole === "SUPER_ADMIN" ? "Delete Customer (Super Admin)" : "Request Customer Removal"}
+          </button>
         </div>
       </div>
+
+      {/* Pending Deletion Warning Banner */}
+      {customer.accountStatus === "PENDING_DELETION" && (
+        <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-amber-900">
+                PENDING DELETION APPROVAL: Staff member proposed removal of this customer account.
+              </p>
+              <p className="text-[11px] text-amber-700">
+                Customer is currently restricted. Super Admin authority is required to approve permanent purge or reject.
+              </p>
+            </div>
+          </div>
+          {currentAdminRole === "SUPER_ADMIN" && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleDeleteSubmit()}
+                disabled={deleteLoading}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Approve & Purge Now
+              </button>
+              <button
+                onClick={() => handleStatusAction("APPROVE_REGISTRATION")}
+                disabled={actionLoading}
+                className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg"
+              >
+                Reject & Restore
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {msg && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
@@ -344,6 +437,87 @@ export default function AdminCustomerDetailPage() {
           </table>
         </div>
       </div>
+
+      {/* Delete / Removal Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+                <span className="font-bold text-sm">
+                  {currentAdminRole === "SUPER_ADMIN" ? "Permanent Customer Purge" : "Request Customer Removal"}
+                </span>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {currentAdminRole === "SUPER_ADMIN" ? (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    Super Admin Direct Removal Authority
+                  </p>
+                  <p className="text-[11px] text-rose-700">
+                    You have authority to remove <strong>{customer.fullName} ({customer.customerId})</strong> immediately without approval. All loans, repayment schedules, and linked account data will be permanently purged.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    Maker-Checker Removal Request
+                  </p>
+                  <p className="text-[11px] text-amber-700">
+                    As staff, this removal request requires review and approval by a <strong>Super Admin</strong>. The customer account will be placed into <code>PENDING DELETION</code> status.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Reason for Deletion {currentAdminRole !== "SUPER_ADMIN" && <span className="text-rose-500">*</span>}
+                </label>
+                <textarea
+                  rows={3}
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="State statutory reason, member closure, or request details..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#082B67]"
+                  required={currentAdminRole !== "SUPER_ADMIN"}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleteLoading}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSubmit()}
+                  disabled={deleteLoading || (currentAdminRole !== "SUPER_ADMIN" && !deleteReason.trim())}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl shadow transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {deleteLoading
+                    ? "Processing..."
+                    : currentAdminRole === "SUPER_ADMIN"
+                    ? "Yes, Permanently Delete"
+                    : "Submit Deletion Request"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

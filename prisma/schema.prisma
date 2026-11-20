@@ -91,7 +91,7 @@ model Customer {
   branchId              String?
   branch                Branch?  @relation(fields: [branchId], references: [id])
   createdByAdminId      String?
-  createdByAdmin        AdminProfile? @relation("AdminCreatedCustomers", fields: [createdByAdminId], references: [id])
+  createdByAdmin        AdminProfile? @relation("AdminCreatedCustomers", fields: [createdByAdminId], references: [id], onDelete: SetNull)
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -146,11 +146,11 @@ model Loan {
 
   // Maker-Checker IDs
   createdByAdminId     String?
-  createdByAdmin       AdminProfile? @relation("AdminCreatedLoans", fields: [createdByAdminId], references: [id])
+  createdByAdmin       AdminProfile? @relation("AdminCreatedLoans", fields: [createdByAdminId], references: [id], onDelete: SetNull)
   approvedByAdminId    String?
-  approvedByAdmin      AdminProfile? @relation("AdminApprovedLoans", fields: [approvedByAdminId], references: [id])
+  approvedByAdmin      AdminProfile? @relation("AdminApprovedLoans", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
   disbursedByAdminId   String?
-  disbursedByAdmin     AdminProfile? @relation("AdminDisbursedLoans", fields: [disbursedByAdminId], references: [id])
+  disbursedByAdmin     AdminProfile? @relation("AdminDisbursedLoans", fields: [disbursedByAdminId], references: [id], onDelete: SetNull)
   approvalDate         DateTime?
   disbursementDate     DateTime?
 
@@ -195,7 +195,7 @@ model Payment {
   referenceNumber    String?
   remarks            String?
   recordedByAdminId  String?
-  recordedByAdmin    AdminProfile? @relation("AdminRecordedPayments", fields: [recordedByAdminId], references: [id])
+  recordedByAdmin    AdminProfile? @relation("AdminRecordedPayments", fields: [recordedByAdminId], references: [id], onDelete: SetNull)
   
   // Reversal fields
   isReversed         Boolean   @default(false)
@@ -242,4 +242,26 @@ model SystemSetting {
   value       String
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+model DeletionRequest {
+  id               String    @id @default(uuid())
+  entityType       String    // "CUSTOMER" or "EMPLOYEE"
+  entityId         String    // Customer ID or AdminProfile ID
+  entityIdentifier String    // e.g. "AFS10001 - Rajesh Kumar" or "AFS-EMP-1002 - Suresh Reddy"
+  reason           String
+  status           String    @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  
+  requestedById    String
+  requestedByRole  String
+  requestedByName  String
+  
+  reviewedById     String?
+  reviewedByRole   String?
+  reviewedByName   String?
+  reviewRemarks    String?
+  reviewedAt       DateTime?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }

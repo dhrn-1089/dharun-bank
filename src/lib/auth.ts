@@ -13,6 +13,8 @@ export interface TokenPayload {
   branchId?: string | null;
   email?: string | null;
   phone: string;
+  name?: string;
+  fullName?: string;
 }
 
 export async function hashPassword(password: string): Promise<string> {
